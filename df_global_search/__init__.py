@@ -7,6 +7,7 @@ class DataFrameSearch:
         self,
         dataframe: pd.DataFrame,
         text_search: str = None,
+        column_search: str = None,
         highlight_matches: bool = True,
         regex_search: bool = False,
         case_sensitive: bool = False,
@@ -16,6 +17,7 @@ class DataFrameSearch:
         """Returns a Pandas Styled Dataframe if search argument is a match"""
         self.dataframe = dataframe
         self.text_search = text_search
+        self.search_column = column_search
         self.highlight_matches = highlight_matches
         self.regex_search = regex_search
         self.case_sensitive = case_sensitive
@@ -29,30 +31,58 @@ class DataFrameSearch:
 
     def __enter__(self):
         if self.text_search:
-            if self.regex_search:
-                filter_mask = np.column_stack(
-                    [
-                        self.dataframe[col]
-                        .astype(str)
-                        .str.match(self.text_search, na=False, case=self.case_sensitive)
-                        for col in self.dataframe
-                    ]
-                )
-            else:
-                try:
+            if not(self.search_column in self.dataframe.columns):
+                if self.regex_search:
                     filter_mask = np.column_stack(
                         [
                             self.dataframe[col]
                             .astype(str)
-                            .str.contains(
-                                self.text_search, na=False, case=self.case_sensitive
-                            )
+                            .str.match(self.text_search, na=False, case=self.case_sensitive)
                             for col in self.dataframe
                         ]
                     )
-                except Exception as e:
-                    return self.dataframe
-            if self.highlight_matches:
+                    
+                else:
+                    try:
+                        filter_mask = np.column_stack(
+                            [
+                                self.dataframe[col]
+                                .astype(str)
+                                .str.contains(
+                                    self.text_search, na=False, case=self.case_sensitive
+                                )
+                                for col in self.dataframe
+                            ]
+                        )
+                        
+                    except Exception as e:
+                        return self.dataframe
+            else:
+                if self.regex_search:
+                    filter_mask = np.column_stack(
+                        [
+                            self.dataframe[str(self.search_column)]
+                            .astype(str)
+                            .str.match(self.text_search, na=False, case=self.case_sensitive)
+                            for col in self.dataframe
+
+                        ]
+                    )
+                   
+                    
+                else:
+                    filter_mask = np.column_stack(
+                            [
+                                self.dataframe[str(self.search_column)]
+                                .astype(str)
+                                .str.contains(
+                                    self.text_search, na=False, case=self.case_sensitive
+                                )
+                                for col in self.dataframe
+                            ]
+                        )
+                   
+            if self.highlight_matches and not (self.search_column in self.dataframe.columns):
                 df_bool = pd.DataFrame(
                     data=filter_mask.tolist(), columns=self.dataframe.columns
                 ).loc[filter_mask.any(axis=1)]
